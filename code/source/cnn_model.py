@@ -96,10 +96,10 @@ class FlexibleCNN(nn.Module):
                  fc_layers=[256, 128],                     # [units for each FC layer]
                  activation=nn.ReLU,                       # Activation class
                  dropout_fc=0.5,                           # Dropout for FC layers
-                 dropout_conv=0.0,                         # ✅ Optional dropout for conv layers
+                 dropout_conv=0.0,                         #  Optional dropout for conv layers
                  use_batchnorm=True,
-                 pool_type="max",                          # ✅ "max" or "avg"
-                 global_pool="avg",                        # ✅ "avg" or "max" for final pooling
+                 pool_type="max",                          # "max" or "avg"
+                 global_pool="avg",                        #  "avg" or "max" for final pooling
                  show_summary=True):
         super().__init__()
 
@@ -143,6 +143,17 @@ class FlexibleCNN(nn.Module):
         x = self.features(x)
         x = torch.flatten(x, 1)
         return self.classifier(x)
+
+
+
+
+
+
+
+
+
+
+
 
 
 class FlexibleCNN_backup(nn.Module):
