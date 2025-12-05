@@ -1,0 +1,322 @@
+# Settings
+yaml_path = Path.cwd().parent / "datasets" / "agropest12" / "data.yaml"
+
+# Settings for retreiving images. Set None for all images or an integer for subset for testing code
+subset_classes = None #['Ants', 'Snails'] # None or list of classes. Example ['Ants', 'Snails']
+n_images_train  = None #None for all images
+n_images_valid =  None #int(n_images_train * 0.2) #20% of number of images for train #None for all images
+n_images_test = None #int(n_images_train * 0.2) #20% of number of images for train #None for all images
+
+
+def get_batch_size(n_images_train=None):
+    if torch.cuda.is_available():
+        gpu_mem = torch.cuda.get_device_properties(0).total_memory / 1024**3  # in GB
+        if gpu_mem > 12:
+            default_large = 128
+        else:
+            default_large = 64
+    else:
+        default_large = 32
+
+    if n_images_train is None:
+        return default_large
+    elif n_images_train < 20:
+        return 16
+    elif n_images_train < 100:
+        return 32
+    else:
+        return default_large
+
+batch_size = get_batch_size(n_images_train)
+
+
+PRETRAINED_MODEL = False   # Use pretrained model and weights, else custom
+if PRETRAINED_MODEL:
+    NORMALIZE = 'ImageNet' #'auto' -  load if file exists, else compute and save, 'compute' - always recompute and overwrite file., 'load' - load from file. 'ImageNet' - use ImageNet values
+else:
+    NORMALIZE = 'load'
+NORMALIZE_CACHE_PATH =  Path.cwd().parent / "datasets" / "agropest12" / "cache" / "agropest12_norm.json"
+
+IMG_SIZE= (224,224) # must use (224,224) to match imagenet            #(128, 128) # # # # Image size for CNN (transform)
+CROP_MODE = 'largest'# 'largest' #'largest'  # 'none' or 'largest  # largest extracts part of image where largest object is located. Some images have mostly background and small portion of object
+
+DEBUG = False # Print debug info for functions
+QUALITY_CONTROL = True # print and plot information for quality control
+SAVE_MODELS = True
+SHOW_PLOT = True
+SAVE_FIGURE = True
+COMPUTE_AVERAGE_IMG_SIZE = False
+
+OPTUNA = False
+OPTUNA_TRAILS = 50
+
+N_EPOCHS = 150
+
+
+# Paths fir saving figures and models
+current_dir = Path.cwd()
+parent_dir = current_dir.parent
+
+# Directory for saving figures
+figures_path = parent_dir / "figures"
+figures_path.mkdir(parents=True, exist_ok=True)
+
+# Directory for saving models and summaries
+models_path = parent_dir / "models"
+models_path.mkdir(parents=True, exist_ok=True)
+
+
+# Current timestamp for files
+timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
+
+
+
+
+
+Training dataset
+Per-class counts:
+ 0            ants: 1029
+ 1            bees: 1101
+ 2         beetles: 857
+ 3    caterpillars: 906
+ 4      earthworms: 717
+ 5         earwigs: 939
+ 6    grasshoppers: 1044
+ 7           moths: 1059
+ 8           slugs: 797
+ 9          snails: 1079
+10           wasps: 1011
+11         weevils: 960
+
+Validation dataset
+Per-class counts:
+ 0            ants: 95
+ 1            bees: 99
+ 2         beetles: 89
+ 3    caterpillars: 77
+ 4      earthworms: 51
+ 5         earwigs: 91
+ 6    grasshoppers: 98
+ 7           moths: 100
+ 8           slugs: 77
+ 9          snails: 98
+10           wasps: 116
+11         weevils: 104
+
+Test dataset
+Per-class counts:
+ 0            ants: 54
+ 1            bees: 40
+ 2         beetles: 41
+ 3    caterpillars: 46
+ 4      earthworms: 27
+ 5         earwigs: 59
+ 6    grasshoppers: 38
+ 7           moths: 47
+ 8           slugs: 46
+ 9          snails: 44
+10           wasps: 46
+11         weevils: 58
+
+
+Epoch 1/150 [Train]: 100%|██████████| 360/360 [08:08<00:00,  1.36s/it, acc=0.1751, loss=2.29]
+Epoch 1/150 [Valid]: 100%|██████████| 35/35 [00:39<00:00,  1.12s/it, acc=0.2339, loss=2.02]
+Epoch 2/150 [Train]: 100%|██████████| 360/360 [08:42<00:00,  1.45s/it, acc=0.2378, loss=2.26]
+Epoch 2/150 [Valid]: 100%|██████████| 35/35 [00:24<00:00,  1.45it/s, acc=0.2705, loss=2.63]
+Epoch 3/150 [Train]: 100%|██████████| 360/360 [06:25<00:00,  1.07s/it, acc=0.2586, loss=1.73]
+Epoch 3/150 [Valid]: 100%|██████████| 35/35 [00:40<00:00,  1.17s/it, acc=0.3027, loss=2.54]
+Epoch 4/150 [Train]: 100%|██████████| 360/360 [06:29<00:00,  1.08s/it, acc=0.2768, loss=1.9] 
+Epoch 4/150 [Valid]: 100%|██████████| 35/35 [00:32<00:00,  1.09it/s, acc=0.3223, loss=1.73]
+Epoch 5/150 [Train]: 100%|██████████| 360/360 [06:49<00:00,  1.14s/it, acc=0.2905, loss=2.02]
+Epoch 5/150 [Valid]: 100%|██████████| 35/35 [00:38<00:00,  1.09s/it, acc=0.3563, loss=2.5] 
+Epoch 6/150 [Train]: 100%|██████████| 360/360 [06:34<00:00,  1.09s/it, acc=0.3089, loss=1.73]
+Epoch 6/150 [Valid]: 100%|██████████| 35/35 [00:21<00:00,  1.63it/s, acc=0.3438, loss=2.16]
+Epoch 7/150 [Train]: 100%|██████████| 360/360 [06:21<00:00,  1.06s/it, acc=0.3142, loss=2.02]
+Epoch 7/150 [Valid]: 100%|██████████| 35/35 [00:30<00:00,  1.17it/s, acc=0.3857, loss=2.05]
+Epoch 8/150 [Train]: 100%|██████████| 360/360 [06:31<00:00,  1.09s/it, acc=0.3313, loss=1.8] 
+Epoch 8/150 [Valid]: 100%|██████████| 35/35 [00:26<00:00,  1.33it/s, acc=0.3839, loss=1.31]
+Epoch 9/150 [Train]: 100%|██████████| 360/360 [06:26<00:00,  1.07s/it, acc=0.3470, loss=2.2] 
+Epoch 9/150 [Valid]: 100%|██████████| 35/35 [00:33<00:00,  1.03it/s, acc=0.3946, loss=1.52]
+Epoch 10/150 [Train]: 100%|██████████| 360/360 [06:25<00:00,  1.07s/it, acc=0.3579, loss=1.87]
+Epoch 10/150 [Valid]: 100%|██████████| 35/35 [00:21<00:00,  1.66it/s, acc=0.4375, loss=2]   
+Epoch 11/150 [Train]: 100%|██████████| 360/360 [06:29<00:00,  1.08s/it, acc=0.3621, loss=1.96]
+Epoch 11/150 [Valid]: 100%|██████████| 35/35 [00:21<00:00,  1.61it/s, acc=0.3688, loss=1.2] 
+Epoch 12/150 [Train]: 100%|██████████| 360/360 [06:31<00:00,  1.09s/it, acc=0.3659, loss=1.85]
+Epoch 12/150 [Valid]: 100%|██████████| 35/35 [00:21<00:00,  1.65it/s, acc=0.4580, loss=2.03]
+Epoch 13/150 [Train]: 100%|██████████| 360/360 [06:25<00:00,  1.07s/it, acc=0.3792, loss=2.01]
+Epoch 13/150 [Valid]: 100%|██████████| 35/35 [00:20<00:00,  1.69it/s, acc=0.4420, loss=1.91]
+Epoch 14/150 [Train]: 100%|██████████| 360/360 [06:21<00:00,  1.06s/it, acc=0.3825, loss=1.34]
+Epoch 14/150 [Valid]: 100%|██████████| 35/35 [00:45<00:00,  1.31s/it, acc=0.4339, loss=1.72]
+Epoch 15/150 [Train]: 100%|██████████| 360/360 [06:22<00:00,  1.06s/it, acc=0.3990, loss=2.5] 
+Epoch 15/150 [Valid]: 100%|██████████| 35/35 [00:20<00:00,  1.72it/s, acc=0.4911, loss=1.13]
+Epoch 16/150 [Train]: 100%|██████████| 360/360 [06:21<00:00,  1.06s/it, acc=0.3946, loss=1.41]
+Epoch 16/150 [Valid]: 100%|██████████| 35/35 [00:33<00:00,  1.04it/s, acc=0.4982, loss=1.3] 
+Epoch 17/150 [Train]: 100%|██████████| 360/360 [06:24<00:00,  1.07s/it, acc=0.4180, loss=1.84]
+Epoch 17/150 [Valid]: 100%|██████████| 35/35 [00:20<00:00,  1.70it/s, acc=0.5009, loss=1.43]
+Epoch 18/150 [Train]: 100%|██████████| 360/360 [06:23<00:00,  1.07s/it, acc=0.4273, loss=1.7] 
+Epoch 18/150 [Valid]: 100%|██████████| 35/35 [00:34<00:00,  1.01it/s, acc=0.4679, loss=1.32]
+Epoch 19/150 [Train]: 100%|██████████| 360/360 [06:18<00:00,  1.05s/it, acc=0.4418, loss=1.66]
+Epoch 19/150 [Valid]: 100%|██████████| 35/35 [00:24<00:00,  1.42it/s, acc=0.5473, loss=1.45]
+Epoch 20/150 [Train]: 100%|██████████| 360/360 [06:19<00:00,  1.05s/it, acc=0.4523, loss=1.77]
+Epoch 20/150 [Valid]: 100%|██████████| 35/35 [00:39<00:00,  1.13s/it, acc=0.4786, loss=1.71]
+Epoch 21/150 [Train]: 100%|██████████| 360/360 [06:29<00:00,  1.08s/it, acc=0.4569, loss=1.94]
+Epoch 21/150 [Valid]: 100%|██████████| 35/35 [00:24<00:00,  1.43it/s, acc=0.5205, loss=1.42] 
+Epoch 22/150 [Train]: 100%|██████████| 360/360 [06:26<00:00,  1.07s/it, acc=0.4609, loss=1.89]
+Epoch 22/150 [Valid]: 100%|██████████| 35/35 [00:21<00:00,  1.60it/s, acc=0.5196, loss=1.46]
+Epoch 23/150 [Train]: 100%|██████████| 360/360 [06:29<00:00,  1.08s/it, acc=0.4772, loss=1.88]
+Epoch 23/150 [Valid]: 100%|██████████| 35/35 [00:21<00:00,  1.62it/s, acc=0.5348, loss=1.16]
+Epoch 24/150 [Train]: 100%|██████████| 360/360 [06:31<00:00,  1.09s/it, acc=0.4905, loss=1.45] 
+Epoch 24/150 [Valid]: 100%|██████████| 35/35 [00:21<00:00,  1.63it/s, acc=0.5696, loss=2.57] 
+Epoch 25/150 [Train]: 100%|██████████| 360/360 [06:23<00:00,  1.07s/it, acc=0.4898, loss=1.48]
+Epoch 25/150 [Valid]: 100%|██████████| 35/35 [00:20<00:00,  1.75it/s, acc=0.5527, loss=0.626]
+Epoch 26/150 [Train]: 100%|██████████| 360/360 [06:24<00:00,  1.07s/it, acc=0.5002, loss=1.32] 
+Epoch 26/150 [Valid]: 100%|██████████| 35/35 [00:20<00:00,  1.71it/s, acc=0.5652, loss=0.816]
+Epoch 27/150 [Train]: 100%|██████████| 360/360 [06:21<00:00,  1.06s/it, acc=0.5155, loss=2.29] 
+Epoch 27/150 [Valid]: 100%|██████████| 35/35 [00:35<00:00,  1.02s/it, acc=0.5473, loss=1.59]
+Epoch 28/150 [Train]: 100%|██████████| 360/360 [06:26<00:00,  1.07s/it, acc=0.5254, loss=1.76] 
+Epoch 28/150 [Valid]: 100%|██████████| 35/35 [00:19<00:00,  1.76it/s, acc=0.5670, loss=1.44] 
+Epoch 29/150 [Train]: 100%|██████████| 360/360 [06:28<00:00,  1.08s/it, acc=0.5296, loss=1.25] 
+Epoch 29/150 [Valid]: 100%|██████████| 35/35 [00:22<00:00,  1.57it/s, acc=0.5437, loss=0.715]
+Epoch 30/150 [Train]: 100%|██████████| 360/360 [06:27<00:00,  1.08s/it, acc=0.5366, loss=1.91] 
+Epoch 30/150 [Valid]: 100%|██████████| 35/35 [00:22<00:00,  1.56it/s, acc=0.5705, loss=1.05] 
+Epoch 31/150 [Train]: 100%|██████████| 360/360 [06:25<00:00,  1.07s/it, acc=0.5438, loss=1.12] 
+Epoch 31/150 [Valid]: 100%|██████████| 35/35 [00:35<00:00,  1.02s/it, acc=0.5866, loss=1.31] 
+Epoch 32/150 [Train]: 100%|██████████| 360/360 [06:25<00:00,  1.07s/it, acc=0.5479, loss=1.37] 
+Epoch 32/150 [Valid]: 100%|██████████| 35/35 [00:34<00:00,  1.02it/s, acc=0.5723, loss=1.2]  
+Epoch 33/150 [Train]: 100%|██████████| 360/360 [06:28<00:00,  1.08s/it, acc=0.5569, loss=1.48] 
+Epoch 33/150 [Valid]: 100%|██████████| 35/35 [00:20<00:00,  1.70it/s, acc=0.5464, loss=0.926]
+Epoch 34/150 [Train]: 100%|██████████| 360/360 [06:22<00:00,  1.06s/it, acc=0.5622, loss=1.44] 
+Epoch 34/150 [Valid]: 100%|██████████| 35/35 [00:30<00:00,  1.15it/s, acc=0.5571, loss=2.36] 
+Epoch 35/150 [Train]: 100%|██████████| 360/360 [06:28<00:00,  1.08s/it, acc=0.5662, loss=0.94] 
+Epoch 35/150 [Valid]: 100%|██████████| 35/35 [00:20<00:00,  1.69it/s, acc=0.6036, loss=2.42] 
+Epoch 36/150 [Train]: 100%|██████████| 360/360 [06:25<00:00,  1.07s/it, acc=0.5715, loss=1.58] 
+Epoch 36/150 [Valid]: 100%|██████████| 35/35 [00:21<00:00,  1.65it/s, acc=0.5884, loss=1.35] 
+Epoch 37/150 [Train]: 100%|██████████| 360/360 [06:24<00:00,  1.07s/it, acc=0.5775, loss=1.31] 
+Epoch 37/150 [Valid]: 100%|██████████| 35/35 [00:21<00:00,  1.63it/s, acc=0.5366, loss=1.22] 
+Epoch 38/150 [Train]: 100%|██████████| 360/360 [06:21<00:00,  1.06s/it, acc=0.5899, loss=1.01] 
+Epoch 38/150 [Valid]: 100%|██████████| 35/35 [00:33<00:00,  1.03it/s, acc=0.6205, loss=2.59] 
+Epoch 39/150 [Train]: 100%|██████████| 360/360 [06:21<00:00,  1.06s/it, acc=0.5924, loss=1.67] 
+Epoch 39/150 [Valid]: 100%|██████████| 35/35 [00:22<00:00,  1.57it/s, acc=0.6054, loss=1.41] 
+Epoch 40/150 [Train]: 100%|██████████| 360/360 [06:24<00:00,  1.07s/it, acc=0.6003, loss=1.16] 
+Epoch 40/150 [Valid]: 100%|██████████| 35/35 [00:33<00:00,  1.06it/s, acc=0.5830, loss=1.45] 
+Epoch 41/150 [Train]: 100%|██████████| 360/360 [06:22<00:00,  1.06s/it, acc=0.6104, loss=1.08] 
+Epoch 41/150 [Valid]: 100%|██████████| 35/35 [00:19<00:00,  1.75it/s, acc=0.5839, loss=0.902]
+Epoch 42/150 [Train]: 100%|██████████| 360/360 [06:25<00:00,  1.07s/it, acc=0.6105, loss=1.16] 
+Epoch 42/150 [Valid]: 100%|██████████| 35/35 [00:33<00:00,  1.06it/s, acc=0.6045, loss=0.942]
+Epoch 43/150 [Train]: 100%|██████████| 360/360 [06:21<00:00,  1.06s/it, acc=0.6212, loss=0.978]
+Epoch 43/150 [Valid]: 100%|██████████| 35/35 [00:21<00:00,  1.63it/s, acc=0.6071, loss=1.51] 
+Epoch 44/150 [Train]: 100%|██████████| 360/360 [06:25<00:00,  1.07s/it, acc=0.6251, loss=1.34] 
+Epoch 44/150 [Valid]: 100%|██████████| 35/35 [00:24<00:00,  1.41it/s, acc=0.6259, loss=0.648]
+Epoch 45/150 [Train]: 100%|██████████| 360/360 [06:27<00:00,  1.08s/it, acc=0.6331, loss=1.2]  
+Epoch 45/150 [Valid]: 100%|██████████| 35/35 [00:20<00:00,  1.71it/s, acc=0.6357, loss=1.2]  
+Epoch 46/150 [Train]: 100%|██████████| 360/360 [06:27<00:00,  1.08s/it, acc=0.6410, loss=1.13] 
+Epoch 46/150 [Valid]: 100%|██████████| 35/35 [00:21<00:00,  1.63it/s, acc=0.6143, loss=1.12] 
+Epoch 47/150 [Train]: 100%|██████████| 360/360 [06:21<00:00,  1.06s/it, acc=0.6411, loss=1.54] 
+Epoch 47/150 [Valid]: 100%|██████████| 35/35 [00:32<00:00,  1.07it/s, acc=0.6312, loss=0.241]
+Epoch 48/150 [Train]: 100%|██████████| 360/360 [06:21<00:00,  1.06s/it, acc=0.6514, loss=1.57] 
+Epoch 48/150 [Valid]: 100%|██████████| 35/35 [00:22<00:00,  1.59it/s, acc=0.6250, loss=1.78] 
+Epoch 49/150 [Train]: 100%|██████████| 360/360 [06:17<00:00,  1.05s/it, acc=0.6562, loss=0.822]
+Epoch 49/150 [Valid]: 100%|██████████| 35/35 [00:40<00:00,  1.14s/it, acc=0.5982, loss=1.34] 
+Epoch 50/150 [Train]: 100%|██████████| 360/360 [06:23<00:00,  1.06s/it, acc=0.6674, loss=0.933]
+Epoch 50/150 [Valid]: 100%|██████████| 35/35 [00:20<00:00,  1.68it/s, acc=0.5991, loss=1.21] 
+Epoch 51/150 [Train]: 100%|██████████| 360/360 [06:24<00:00,  1.07s/it, acc=0.6616, loss=1.57] 
+Epoch 51/150 [Valid]: 100%|██████████| 35/35 [00:33<00:00,  1.03it/s, acc=0.5795, loss=1.97] 
+Epoch 52/150 [Train]: 100%|██████████| 360/360 [06:29<00:00,  1.08s/it, acc=0.6769, loss=1.02] 
+Epoch 52/150 [Valid]: 100%|██████████| 35/35 [00:20<00:00,  1.67it/s, acc=0.6482, loss=2.81] 
+Epoch 53/150 [Train]: 100%|██████████| 360/360 [06:30<00:00,  1.09s/it, acc=0.6738, loss=1.44] 
+Epoch 53/150 [Valid]: 100%|██████████| 35/35 [00:21<00:00,  1.60it/s, acc=0.6393, loss=0.326]
+Epoch 54/150 [Train]: 100%|██████████| 360/360 [06:28<00:00,  1.08s/it, acc=0.6774, loss=1.49] 
+Epoch 54/150 [Valid]: 100%|██████████| 35/35 [00:20<00:00,  1.68it/s, acc=0.5911, loss=1.61] 
+Epoch 55/150 [Train]: 100%|██████████| 360/360 [06:27<00:00,  1.08s/it, acc=0.6872, loss=1.09] 
+Epoch 55/150 [Valid]: 100%|██████████| 35/35 [00:21<00:00,  1.64it/s, acc=0.6321, loss=2.56] 
+Epoch 56/150 [Train]: 100%|██████████| 360/360 [06:19<00:00,  1.06s/it, acc=0.6878, loss=0.525]
+Epoch 56/150 [Valid]: 100%|██████████| 35/35 [00:32<00:00,  1.07it/s, acc=0.6312, loss=0.912]
+Epoch 57/150 [Train]: 100%|██████████| 360/360 [06:25<00:00,  1.07s/it, acc=0.6898, loss=0.458]
+Epoch 57/150 [Valid]: 100%|██████████| 35/35 [00:20<00:00,  1.71it/s, acc=0.6330, loss=0.551]
+Epoch 58/150 [Train]: 100%|██████████| 360/360 [06:25<00:00,  1.07s/it, acc=0.6850, loss=0.782]
+Epoch 58/150 [Valid]: 100%|██████████| 35/35 [00:33<00:00,  1.03it/s, acc=0.6259, loss=0.922]
+Epoch 59/150 [Train]: 100%|██████████| 360/360 [06:28<00:00,  1.08s/it, acc=0.6899, loss=2.2]  
+Epoch 59/150 [Valid]: 100%|██████████| 35/35 [00:22<00:00,  1.53it/s, acc=0.6429, loss=1.09] 
+Epoch 60/150 [Train]: 100%|██████████| 360/360 [06:23<00:00,  1.07s/it, acc=0.6985, loss=0.906]
+Epoch 60/150 [Valid]: 100%|██████████| 35/35 [00:33<00:00,  1.05it/s, acc=0.6589, loss=1.57] 
+Epoch 61/150 [Train]: 100%|██████████| 360/360 [06:30<00:00,  1.08s/it, acc=0.7098, loss=1.21] 
+Epoch 61/150 [Valid]: 100%|██████████| 35/35 [00:19<00:00,  1.75it/s, acc=0.6125, loss=0.275]
+Epoch 62/150 [Train]: 100%|██████████| 360/360 [06:26<00:00,  1.07s/it, acc=0.7444, loss=0.62] 
+Epoch 62/150 [Valid]: 100%|██████████| 35/35 [00:34<00:00,  1.03it/s, acc=0.6804, loss=0.491]
+Epoch 63/150 [Train]: 100%|██████████| 360/360 [06:23<00:00,  1.07s/it, acc=0.7546, loss=0.91] 
+Epoch 63/150 [Valid]: 100%|██████████| 35/35 [00:21<00:00,  1.67it/s, acc=0.6509, loss=1.5]  
+Epoch 64/150 [Train]: 100%|██████████| 360/360 [06:28<00:00,  1.08s/it, acc=0.7601, loss=0.838]
+Epoch 64/150 [Valid]: 100%|██████████| 35/35 [00:21<00:00,  1.63it/s, acc=0.6107, loss=1.28] 
+Epoch 65/150 [Train]: 100%|██████████| 360/360 [06:24<00:00,  1.07s/it, acc=0.7614, loss=0.4]  
+Epoch 65/150 [Valid]: 100%|██████████| 35/35 [00:21<00:00,  1.63it/s, acc=0.6848, loss=0.492]
+Epoch 66/150 [Train]: 100%|██████████| 360/360 [06:28<00:00,  1.08s/it, acc=0.7641, loss=0.741]
+Epoch 66/150 [Valid]: 100%|██████████| 35/35 [00:22<00:00,  1.56it/s, acc=0.6750, loss=2.58] 
+Epoch 67/150 [Train]: 100%|██████████| 360/360 [06:37<00:00,  1.10s/it, acc=0.7641, loss=1.02] 
+Epoch 67/150 [Valid]: 100%|██████████| 35/35 [00:21<00:00,  1.65it/s, acc=0.6625, loss=0.838]
+Epoch 68/150 [Train]: 100%|██████████| 360/360 [06:25<00:00,  1.07s/it, acc=0.7680, loss=0.879]
+Epoch 68/150 [Valid]: 100%|██████████| 35/35 [00:23<00:00,  1.49it/s, acc=0.6830, loss=0.604]
+Epoch 69/150 [Train]: 100%|██████████| 360/360 [06:23<00:00,  1.07s/it, acc=0.7671, loss=0.541]
+Epoch 69/150 [Valid]: 100%|██████████| 35/35 [00:40<00:00,  1.16s/it, acc=0.6705, loss=1.17] 
+Epoch 70/150 [Train]: 100%|██████████| 360/360 [06:22<00:00,  1.06s/it, acc=0.7775, loss=1.32] 
+Epoch 70/150 [Valid]: 100%|██████████| 35/35 [00:24<00:00,  1.43it/s, acc=0.6384, loss=1.48] 
+Epoch 71/150 [Train]: 100%|██████████| 360/360 [06:28<00:00,  1.08s/it, acc=0.7776, loss=0.695]
+Epoch 71/150 [Valid]: 100%|██████████| 35/35 [00:24<00:00,  1.41it/s, acc=0.6679, loss=1.34] 
+Epoch 72/150 [Train]: 100%|██████████| 360/360 [07:16<00:00,  1.21s/it, acc=0.7899, loss=0.694]
+Epoch 72/150 [Valid]: 100%|██████████| 35/35 [00:24<00:00,  1.42it/s, acc=0.6714, loss=0.375]
+Epoch 73/150 [Train]: 100%|██████████| 360/360 [08:43<00:00,  1.45s/it, acc=0.7806, loss=0.602]
+Epoch 73/150 [Valid]: 100%|██████████| 35/35 [00:30<00:00,  1.15it/s, acc=0.6571, loss=1.92] 
+Epoch 74/150 [Train]: 100%|██████████| 360/360 [10:04<00:00,  1.68s/it, acc=0.7836, loss=0.303]
+Epoch 74/150 [Valid]: 100%|██████████| 35/35 [00:26<00:00,  1.32it/s, acc=0.6393, loss=0.546]
+Epoch 75/150 [Train]: 100%|██████████| 360/360 [11:03<00:00,  1.84s/it, acc=0.7909, loss=0.641]
+Epoch 75/150 [Valid]: 100%|██████████| 35/35 [00:29<00:00,  1.19it/s, acc=0.6223, loss=0.7]  
+Epoch 76/150 [Train]: 100%|██████████| 360/360 [11:42<00:00,  1.95s/it, acc=0.7905, loss=0.933]
+Epoch 76/150 [Valid]: 100%|██████████| 35/35 [00:31<00:00,  1.11it/s, acc=0.6571, loss=1.01] 
+Epoch 77/150 [Train]: 100%|██████████| 360/360 [12:28<00:00,  2.08s/it, acc=0.7946, loss=0.652]
+Epoch 77/150 [Valid]: 100%|██████████| 35/35 [00:33<00:00,  1.05it/s, acc=0.6223, loss=2.51] 
+Epoch 78/150 [Train]: 100%|██████████| 360/360 [13:03<00:00,  2.18s/it, acc=0.8008, loss=1.08] 
+Epoch 78/150 [Valid]: 100%|██████████| 35/35 [00:31<00:00,  1.10it/s, acc=0.6616, loss=0.679]
+Epoch 79/150 [Train]: 100%|██████████| 360/360 [13:33<00:00,  2.26s/it, acc=0.7974, loss=1]    
+Epoch 79/150 [Valid]: 100%|██████████| 35/35 [00:36<00:00,  1.03s/it, acc=0.5527, loss=1.33]
+Epoch 80/150 [Train]: 100%|██████████| 360/360 [14:10<00:00,  2.36s/it, acc=0.7970, loss=0.613]
+Epoch 80/150 [Valid]: 100%|██████████| 35/35 [00:35<00:00,  1.02s/it, acc=0.6839, loss=3.15] 
+
+
+
+
+{'accuracy': 0.6941391941391941,
+ 'macro_f1': 0.6887631416320801,
+ 'precision_per_class': array([0.75      , 0.81578946, 0.425     , 0.6315789 , 0.5714286 ,
+        0.71794873, 0.453125  , 0.7592593 , 0.5       , 0.8780488 ,
+        0.974359  , 0.89285713], dtype=float32),
+ 'recall_per_class': array([0.7777778 , 0.775     , 0.41463414, 0.5217391 , 0.7407407 ,
+        0.47457626, 0.7631579 , 0.87234044, 0.5       , 0.8181818 ,
+        0.82608694, 0.86206895], dtype=float32),
+ 'confusion_matrix': array([[42,  0,  5,  0,  2,  4,  1,  0,  0,  0,  0,  0],
+        [ 1, 31,  5,  3,  0,  0,  0,  0,  0,  0,  0,  0],
+        [ 2,  3, 17,  4,  1,  4,  5,  0,  1,  1,  1,  2],
+        [ 1,  1,  2, 24,  1,  0, 11,  1,  5,  0,  0,  0],
+        [ 1,  0,  1,  0, 20,  0,  0,  0,  4,  0,  0,  1],
+        [ 5,  1,  6,  1,  3, 28,  8,  4,  3,  0,  0,  0],
+        [ 0,  0,  0,  2,  0,  2, 29,  4,  1,  0,  0,  0],
+        [ 0,  0,  0,  0,  2,  0,  2, 41,  0,  1,  0,  1],
+        [ 1,  0,  3,  4,  6,  1,  1,  4, 23,  2,  0,  1],
+        [ 0,  1,  0,  0,  0,  0,  0,  0,  6, 36,  0,  1],
+        [ 1,  1,  0,  0,  0,  0,  6,  0,  0,  0, 38,  0],
+        [ 2,  0,  1,  0,  0,  0,  1,  0,  3,  1,  0, 50]])}
+
+
+
+
+# Training
+
+# training based on Optuna or not
+#learning_rate = best_params['learning_rate'] if USE_OPTUNA else 0.001
+learning_rate = 0.001
+
+if PRETRAINED_MODEL:
+    optimizer = torch.optim.Adam(model.fc.parameters(), lr=learning_rate, weight_decay=1e-4)  # only updates weights for fully connected layer
+else:
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-4)
+
+loss_fn = nn.CrossEntropyLoss()
+epochs = N_EPOCHS 

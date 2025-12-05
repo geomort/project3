@@ -1,0 +1,191 @@
+{'accuracy': 0.6684981684981685,
+ 'macro_f1': 0.6517226099967957,
+ 'precision_per_class': array([0.6393443 , 0.7       , 0.46153846, 0.6666667 , 0.4347826 ,
+        0.5576923 , 0.5869565 , 0.75      , 0.625     , 0.7659575 ,
+        0.8035714 , 0.88235295], dtype=float32),
+ 'recall_per_class': array([0.7222222 , 0.875     , 0.29268292, 0.39130434, 0.7407407 ,
+        0.4915254 , 0.7105263 , 0.82978725, 0.4347826 , 0.8181818 ,
+        0.9782609 , 0.7758621 ], dtype=float32),
+ 'confusion_matrix': array([[39,  2,  4,  0,  0,  6,  0,  0,  0,  0,  2,  1],
+        [ 2, 35,  1,  1,  0,  0,  0,  0,  0,  0,  1,  0],
+        [ 4,  4, 12,  2,  2,  6,  2,  0,  3,  1,  2,  3],
+        [ 1,  2,  3, 18,  6,  3,  7,  3,  2,  1,  0,  0],
+        [ 1,  0,  0,  0, 20,  1,  0,  1,  3,  1,  0,  0],
+        [10,  3,  2,  2,  2, 29,  5,  1,  1,  1,  3,  0],
+        [ 1,  0,  1,  1,  1,  3, 27,  1,  0,  0,  3,  0],
+        [ 0,  0,  0,  0,  1,  2,  1, 39,  1,  2,  0,  1],
+        [ 0,  2,  2,  2, 10,  1,  3,  2, 20,  3,  0,  1],
+        [ 0,  1,  0,  1,  3,  0,  0,  2,  1, 36,  0,  0],
+        [ 0,  0,  0,  0,  0,  1,  0,  0,  0,  0, 45,  0],
+        [ 3,  1,  1,  0,  1,  0,  1,  3,  1,  2,  0, 45]])}
+
+
+
+
+
+
+
+
+
+# Settings
+yaml_path = Path.cwd().parent / "datasets" / "agropest12" / "data.yaml"
+
+# Settings for retreiving images. Set None for all images or an integer for subset for testing code
+subset_classes = None #['Ants', 'Snails'] # None or list of classes. Example ['Ants', 'Snails']
+n_images_train  = None #None for all images
+n_images_valid =  None #int(n_images_train * 0.2) #20% of number of images for train #None for all images
+n_images_test = None #int(n_images_train * 0.2) #20% of number of images for train #None for all images
+
+
+def get_batch_size(n_images_train=None):
+    if torch.cuda.is_available():
+        gpu_mem = torch.cuda.get_device_properties(0).total_memory / 1024**3  # in GB
+        if gpu_mem > 12:
+            default_large = 128
+        else:
+            default_large = 64
+    else:
+        default_large = 32
+
+    if n_images_train is None:
+        return default_large
+    elif n_images_train < 20:
+        return 16
+    elif n_images_train < 100:
+        return 32
+    else:
+        return default_large
+
+batch_size = get_batch_size(n_images_train)
+
+
+PRETRAINED_MODEL = False   # Use pretrained model and weights, else custom
+if PRETRAINED_MODEL:
+    NORMALIZE = 'ImageNet' #'auto' -  load if file exists, else compute and save, 'compute' - always recompute and overwrite file., 'load' - load from file. 'ImageNet' - use ImageNet values
+else:
+    NORMALIZE = 'load'
+NORMALIZE_CACHE_PATH =  Path.cwd().parent / "datasets" / "agropest12" / "cache" / "agropest12_norm.json"
+
+IMG_SIZE= (128,128) # Pretrained must use (224,224) to match imagenet            #(128, 128) # # # # Image size for CNN (transform)
+CROP_MODE = 'largest'# 'largest' #'largest'  # 'none' or 'largest  # largest extracts part of image where largest object is located. Some images have mostly background and small portion of object
+
+DEBUG = False # Print debug info for functions
+QUALITY_CONTROL = True # print and plot information for quality control
+SAVE_MODELS = True
+SHOW_PLOT = True
+SAVE_FIGURE = True
+COMPUTE_AVERAGE_IMG_SIZE = True
+
+OPTUNA = True
+OPTUNA_TRAILS = 50
+OPTUNA_EPOCHS = 30
+
+N_EPOCHS = 50
+
+
+# Paths fir saving figures and models
+current_dir = Path.cwd()
+parent_dir = current_dir.parent
+
+# Directory for saving figures
+figures_path = parent_dir / "figures"
+figures_path.mkdir(parents=True, exist_ok=True)
+
+# Directory for saving models and summaries
+models_path = parent_dir / "models"
+models_path.mkdir(parents=True, exist_ok=True)
+
+
+# Current timestamp for files
+timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M")
+
+
+
+
+
+
+Training dataset
+Per-class counts:
+ 0            ants: 1029
+ 1            bees: 1101
+ 2         beetles: 857
+ 3    caterpillars: 906
+ 4      earthworms: 717
+ 5         earwigs: 939
+ 6    grasshoppers: 1044
+ 7           moths: 1059
+ 8           slugs: 797
+ 9          snails: 1079
+10           wasps: 1011
+11         weevils: 960
+
+Validation dataset
+Per-class counts:
+ 0            ants: 95
+ 1            bees: 99
+ 2         beetles: 89
+ 3    caterpillars: 77
+ 4      earthworms: 51
+ 5         earwigs: 91
+ 6    grasshoppers: 98
+ 7           moths: 100
+ 8           slugs: 77
+ 9          snails: 98
+10           wasps: 116
+11         weevils: 104
+
+Test dataset
+Per-class counts:
+ 0            ants: 54
+ 1            bees: 40
+ 2         beetles: 41
+ 3    caterpillars: 46
+ 4      earthworms: 27
+ 5         earwigs: 59
+ 6    grasshoppers: 38
+ 7           moths: 47
+ 8           slugs: 46
+ 9          snails: 44
+10           wasps: 46
+11         weevils: 58
+
+
+
+
+
+
+# Training
+
+# training based on Optuna or not
+#learning_rate = best_params['learning_rate'] if USE_OPTUNA else 0.001
+learning_rate = 0.001
+
+if PRETRAINED_MODEL:
+    optimizer = torch.optim.Adam(model.fc.parameters(), lr=learning_rate, weight_decay=1e-4)  # only updates weights for fully connected layer
+else:
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-4)
+
+loss_fn = nn.CrossEntropyLoss()
+epochs = N_EPOCHS 
+
+
+
+history = train_model(
+    model=model,
+    num_epochs=epochs,
+    train_dl=dataloader_train,
+    valid_dl=dataloader_valid,
+    loss_fn=loss_fn,
+    optimizer=optimizer,
+    device='cpu',
+    verbose=True,
+    patience_val=15
+)
+
+
+
+
+
+
+
+
