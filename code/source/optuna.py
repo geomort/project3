@@ -7,6 +7,42 @@ from torch.utils.data import DataLoader
 import optuna
 
 def create_objective(num_classes, input_size_img, train_dataset, validation_dataset, num_epochs, device="cpu"):
+    """
+    Docstrings made with Copilot and edited
+    Create an Optuna objective function that builds, trains, and evaluates a CNN
+    for classification, returning the best validation accuracy per trial.
+
+    Parameters
+    ----------
+    num_classes : int
+        Number of output classes for classification.
+    input_size_img : tuple[int, int, int]
+        Input image size as (C, H, W).
+    train_dataset : torch.utils.data.Dataset
+        Training dataset.
+    validation_dataset : torch.utils.data.Dataset
+        Validation dataset.
+    num_epochs : int
+        Number of training epochs per trial.
+    device : str, optional
+        Computation device ('cpu' or 'cuda'). Default is "cpu".
+
+    Returns
+    -------
+    callable
+        An objective function `objective(trial)` compatible with Optuna that:
+        - Samples hyperparameters (learning rate, dropout, conv/fc layout).
+        - Constructs `FlexibleCNN`.
+        - Trains the model for `num_epochs`.
+        - Returns the maximum validation accuracy observed.
+
+    Effects
+    -------
+    - Prints the number of classes at creation.
+    - Each call trains a model on `train_dataset` and evaluates on `validation_dataset`.
+    - Uses a batch size of 32 for both training and validation DataLoaders.
+    """
+
     print(f"[INFO] num_classes = {num_classes}")
 
 

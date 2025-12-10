@@ -1,17 +1,31 @@
 import random
-import matplotlib.pyplot as plt
-import torch
 import math
-import numpy as np
-import torch.nn as nn
+from pathlib import Path
+from typing import List, Optional, Dict, Tuple, Union
 
+import numpy as np
+import torch
+import torch.nn as nn
+import matplotlib.pyplot as plt
+from PIL import Image
+import torchvision.transforms as T
 
 
 
 def find_normalize(dataset):
     """
-    Try to extract the Normalize(mean,std) from dataset.transform (torchvision).
-    Returns (mean, std) as tensors on CPU, or None if not found.
+    Docstrings made with Copilot and edited
+    Extract normalization parameters (mean, std) from a torchvision dataset transform.
+
+    Parameters
+    ----------
+    dataset : torch.utils.data.Dataset
+        Dataset with an optional `transform` attribute.
+
+    Returns
+    -------
+    tuple or None
+        (mean, std) as torch tensors on CPU if found, otherwise None.
     """
     if not hasattr(dataset, "transform"):
         return None
@@ -27,12 +41,22 @@ def find_normalize(dataset):
 
 def denormalize_img(img, mean=None, std=None):
     """
-    Converts image (Tensor, NumPy, or PIL) to NumPy [H,W,C] in [0,1].
+    Docstrings made with Copilot and edited
+    Convert an image (Tensor, NumPy, or PIL) to a NumPy array [H, W, C] with values in [0, 1].
+    If `mean` and `std` are provided, reverse normalization: x = x * std + mean.
+
+    Parameters
+    ----------
+    img : torch.Tensor, numpy.ndarray, or PIL.Image.Image
+        Input image in [C, H, W] or [H, W, C].
+    mean, std : list, tuple, or torch.Tensor, optional
+        Channel-wise normalization parameters.
+
+    Returns
+    -------
+    numpy.ndarray
+        Denormalized image as float32 in [H, W, C].
     """
-    import torch
-    import numpy as np
-    from PIL import Image
-    import torchvision.transforms as T
 
     # Convert PIL to tensor
     if isinstance(img, Image.Image):
@@ -66,7 +90,20 @@ def denormalize_img(img, mean=None, std=None):
 
 
 def _infer_mean_std_from_transforms(transforms):
-    """Try to detect torchvision.transforms.Normalize(mean, std) in a Compose."""
+    """
+    Docstrings made with Copilot and edited
+    Detect Normalize(mean, std) in a torchvision Compose and return values.
+
+    Parameters
+    ----------
+    transforms : torchvision.transforms.Compose
+        Transform pipeline to inspect.
+
+    Returns
+    -------
+    tuple
+        (mean, std) as lists of floats. Defaults to ([0.0, 0.0, 0.0], [1.0, 1.0, 1.0]) if not found.
+    """
     if hasattr(transforms, "transforms"):
         for t in transforms.transforms:
             # torchvision.transforms.Normalize has mean/std attributes
@@ -77,11 +114,39 @@ def _infer_mean_std_from_transforms(transforms):
                 return mean, std
     return [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]
 
+
 def plot_random_image_per_class(dataset, mean=None, std=None, max_cols=4, verbose=False,
                                 save_figure=False, show_plot=False, figures_path=None, timestamp=None):
-    import math
-    import numpy as np
-    import matplotlib.pyplot as plt
+
+
+    """
+    Docstrings made with Copilot and edited
+    Plot one random image per class from a dataset.
+
+    Parameters
+    ----------
+    dataset : torch.utils.data.Dataset
+        Dataset with `subset_class_names` and `transform`.
+    mean, std : list or None
+        Normalization parameters for denormalization. If None, inferred from dataset transforms.
+    max_cols : int
+        Maximum number of columns in the plot grid.
+    verbose : bool
+        Print selected indices and missing classes.
+    save_figure : bool
+        Save the figure to `figures_path` using `timestamp` as part of the filename.
+    show_plot : bool
+        Display the plot interactively.
+    figures_path : pathlib.Path or None
+        Directory to save the figure if `save_figure=True`.
+    timestamp : str or None
+        Timestamp for naming the saved figure.
+
+    Returns
+    -------
+    None
+        Displays or saves the plot of random images per class.
+    """
 
     class_names = dataset.subset_class_names
     num_classes = len(class_names)
@@ -150,7 +215,28 @@ def plot_random_image_per_class(dataset, mean=None, std=None, max_cols=4, verbos
 
 
 def plot_loss_accuracy(history, figures_path, timestamp, save_figure, show_plot):
-    # --- Loss Plot ---
+    """
+    Docstrings made with Copilot and edited
+    Plot training, validation (and optional test) loss and accuracy curves.
+
+    Parameters
+    ----------
+    history : dict
+        Dictionary with keys like 'train_loss', 'valid_loss', 'train_acc', 'valid_acc', and optionally 'test_loss', 'test_acc'.
+    figures_path : pathlib.Path
+        Directory to save figures if `save_figure=True`.
+    timestamp : str
+        Timestamp string for naming saved files.
+    save_figure : bool
+        Whether to save plots as PNG files.
+    show_plot : bool
+        Whether to display plots interactively.
+
+    Returns
+    -------
+    None
+        Displays or saves loss and accuracy plots.
+    """
     plt.figure(figsize=(10, 5))
     plt.plot(history["train_loss"], label="Train Loss")
     plt.plot(history["valid_loss"], label="Validation Loss")
@@ -189,15 +275,47 @@ def plot_random_predictions(model, dataset, num_samples, path, time, number_imag
                             rows=None, cols=None, class_names=None, selected_classes=None,
                             device="cpu", show_prob=True, save_figures=True, show_plot=True,
                             max_cols=2):
-    """
-    Displays random predictions from a trained model on a given dataset.
-    Robust layout: minimal whitespace, dynamic sizing.
-    """
 
-    import math
-    import random
-    import torch
-    import matplotlib.pyplot as plt
+    """
+    Docstrings made with Copilot and edited
+    Plot random predictions from a trained model on a dataset.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        Trained model for inference.
+    dataset : torch.utils.data.Dataset
+        Dataset providing images and labels.
+    num_samples : int
+        Number of random samples to display.
+    path : pathlib.Path
+        Directory to save figures if `save_figures=True`.
+    time : str
+        Timestamp for naming saved files.
+    number_images : str or int
+        Identifier for the figure filename.
+    rows, cols : int, optional
+        Grid layout; computed dynamically if None.
+    class_names : list of str, optional
+        Names of classes; inferred from dataset if not provided.
+    selected_classes : list of str, optional
+        Subset of classes to display predictions for.
+    device : str
+        Device for inference ('cpu' or 'cuda').
+    show_prob : bool
+        Show prediction confidence in titles.
+    save_figures : bool
+        Save the figure to disk.
+    show_plot : bool
+        Display the plot interactively.
+    max_cols : int
+        Maximum number of columns in the grid.
+
+    Returns
+    -------
+    None
+        Displays or saves a grid of predictions with true labels.
+    """
 
     # Normalization info
     norm = find_normalize(dataset)
@@ -302,23 +420,29 @@ def plot_random_predictions(model, dataset, num_samples, path, time, number_imag
 
 
 
-import torch
-import torch.nn as nn
-import matplotlib.pyplot as plt
-import numpy as np
-import random
-from pathlib import Path
-
 def find_conv_layers(model: nn.Module):
     """
-    Returns an ordered list of (name, layer) for all nn.Conv2d layers in the model.
-    The order reflects the forward traversal order of modules.
+    Docstrings made with Copilot and edited
+    Return a list of (name, layer) for all nn.Conv2d layers in the model.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The model to inspect.
+
+    Returns
+    -------
+    list of tuple
+        Ordered list of (layer_name, layer_module) for each Conv2d layer.
     """
+
     convs = []
     for name, module in model.named_modules():
         if isinstance(module, nn.Conv2d):
             convs.append((name, module))
     return convs
+
+
 
 def plot_filter_weights(
     model: nn.Module,
@@ -337,40 +461,50 @@ def plot_filter_weights(
     cmap: str = 'viridis',
     seed: int | None = None,
 ):
+    
+    
     """
-    Plot random filters from a chosen Conv2d layer in a PyTorch model.
+    Docstrings made with Copilot and edited
+    Visualize convolutional filter weights from a specified layer in a model.
 
-    Args:
-        model (nn.Module): The model containing convolutional layers.
-        path (Path | str): Directory to save the figure if `save_figures=True`.
-        time (str): Identifier for filename (e.g., timestamp).
-        number_images (int): Included in filename for context.
-        rows (int): Number of rows in the grid.
-        cols (int): Number of columns in the grid.
-        channel (int): Input channel index to visualize (0 for R in RGB, 0 for grayscale).
-        title (str): Title of the plot.
-        save_figures (bool): Whether to save the figure as PNG.
-        show_plot (bool): Whether to show the figure.
-        layer_index (int): Index of conv layer to visualize (0 = first conv layer).
-        layer_name (str | None): If provided, selects the conv layer by its name.
-        normalize_each_filter (bool): If True, min-max normalize each filter for display.
-        cmap (str): Matplotlib colormap.
-        seed (int | None): Random seed for reproducible filter selection.
+    Parameters
+    ----------
+    model : torch.nn.Module
+        Model containing Conv2d layers.
+    path : pathlib.Path
+        Directory to save the figure.
+    time : str
+        Timestamp for naming the saved file.
+    number_images : int
+        Identifier for the figure filename.
+    rows, cols : int
+        Grid layout for filters.
+    channel : int
+        Input channel to visualize for each filter.
+    title : str
+        Figure title.
+    save_figures : bool
+        Save the figure to disk.
+    show_plot : bool
+        Display the plot interactively.
+    layer_index : int
+        Index of the Conv2d layer to visualize.
+    layer_name : str, optional
+        Name of the Conv2d layer to visualize (overrides index).
+    normalize_each_filter : bool
+        Normalize each filter for better contrast.
+    cmap : str
+        Colormap for visualization.
+    seed : int, optional
+        Random seed for filter selection.
 
-    Behavior:
-        - Auto-discovers Conv2d layers (works for ResNet, custom CNNs, Sequential nets).
-        - Selects filters randomly from chosen conv layer.
-        - Visualizes weights for a single input channel per filter.
-        - Saves and/or shows the plot.
-
-    Notes:
-        - Conv weights shape: [out_channels, in_channels, kH, kW].
-        - `channel` must be < in_channels of the chosen layer.
-        - For depthwise convs, in_channels may equal groups; still works the same.
-
-    Returns:
-        dict with metadata about the plotted layer.
+    Returns
+    -------
+    dict
+        Metadata including chosen layer name, channels, kernel size, plotted filter indices, and filename.
     """
+
+
     # Resolve path
     path = Path(path)
     path.mkdir(parents=True, exist_ok=True)
@@ -462,29 +596,44 @@ def plot_filter_weights(
 
 def plot_image(image, path, time, number_images, title='CHANGE TITLE',
                save_figures=False, show_plot=False, dataset=None):
-    """
-    Displays a single image (tensor or numpy) using Matplotlib and optionally saves it.
-    Automatically denormalizes if Normalize(mean,std) is found in dataset.transform.
 
-    Args:
-        image: torch.Tensor [C,H,W] or numpy.ndarray [H,W,C]
-        path: Path-like for saving
-        time: string identifier (e.g., timestamp)
-        number_images: int for filename context
-        title: str
-        save_figures: bool
-        show_plot: bool
-        dataset: optional dataset to auto-detect Normalize(mean,std)
     """
-    # --- Detect normalization from dataset ---
+    Docstrings made with Copilot and edited
+    Display a single image with optional denormalization and save/show options.
+
+    Parameters
+    ----------
+    image : torch.Tensor or numpy.ndarray
+        Image to display.
+    path : pathlib.Path
+        Directory to save the figure if `save_figures=True`.
+    time : str
+        Timestamp for naming the saved file.
+    number_images : int
+        Identifier for the figure filename.
+    title : str
+        Title for the plot.
+    save_figures : bool
+        Save the figure to disk.
+    show_plot : bool
+        Display the plot interactively.
+    dataset : torch.utils.data.Dataset, optional
+        Dataset used to infer normalization (mean/std).
+
+    Returns
+    -------
+    None
+        Displays or saves the image plot.
+    """
+
+
     mean, std = None, None
     if dataset is not None:
         norm = find_normalize(dataset)
         if norm is not None:
             mean, std = norm
 
-    # --- Prepare image for display ---
-    image_np = denormalize_img(image, mean, std)  # returns [H,W,C] numpy in [0,1]
+    image_np = denormalize_img(image, mean, std) 
 
     # --- Plot with extra title space ---
     fig, ax = plt.subplots(figsize=(5, 5))
@@ -493,9 +642,8 @@ def plot_image(image, path, time, number_images, title='CHANGE TITLE',
     ax.set_title(title, fontsize=14, pad=15)
 
     fig.tight_layout()
-    fig.subplots_adjust(top=0.87)  # more space for title
+    fig.subplots_adjust(top=0.87)  
 
-    # --- Save/Show ---
     if save_figures:
         fig.savefig(path / f'{time}_sample_image_number_images{number_images}.png',
                     dpi=300, bbox_inches='tight')
@@ -507,27 +655,8 @@ def plot_image(image, path, time, number_images, title='CHANGE TITLE',
 
 
 
-
-import torch
-import torch.nn as nn
-import matplotlib.pyplot as plt
-import numpy as np
-import random
-from pathlib import Path
-from typing import List, Optional, Dict, Tuple, Union
-
-def find_conv_layers(model: nn.Module) -> List[Tuple[str, nn.Conv2d]]:
-    """
-    Return (name, layer) tuples for all nn.Conv2d modules in forward-traversal order.
-    Works for ResNet, VGG, custom Sequential models, etc.
-    """
-    convs = []
-    for name, module in model.named_modules():
-        if isinstance(module, nn.Conv2d):
-            convs.append((name, module))
-    return convs
-
 def _sanitize(name: str) -> str:
+    # Replace '.' and '/' in a string with underscores for safe naming.
     return name.replace(".", "_").replace("/", "_")
 
 
@@ -538,8 +667,8 @@ def plot_feature_maps(
     path: Union[Path, str],
     time: str,
     number_images: int,
-    layers_to_show: Optional[List[int]] = None,      # indices in conv-layer order
-    layer_names: Optional[List[str]] = None,         # exact module names (e.g., "conv1", "layer1.0.conv1")
+    layers_to_show: Optional[List[int]] = None,     
+    layer_names: Optional[List[str]] = None,         
     num_maps: int = 8,
     rows: Optional[int] = None,
     cols: Optional[int] = None,
@@ -547,20 +676,54 @@ def plot_feature_maps(
     save_figures: bool = True,
     show_plot: bool = True,
     device: Union[str, torch.device] = "cpu",
-    input_is_tensor: bool = True,                    # set False if passing a PIL image or np.ndarray
-    preprocess: Optional[callable] = None,           # e.g., weights.transforms() or custom Compose
+    input_is_tensor: bool = True,                    
+    preprocess: Optional[callable] = None,           
     seed: Optional[int] = None
 ) -> Dict[str, Dict]:
+
     """
-    Visualize randomly selected feature maps from chosen Conv2d layers using forward hooks.
-    Works with ResNet and custom CNNs.
+    Docstrings made with Copilot and edited
+    Visualize feature maps from selected Conv2d layers using forward hooks.
 
-    - If `layer_names` is given, those modules are used (preferred).
-    - Else if `layers_to_show` is given, indices into the discovered conv layers are used.
-    - Else, plots all Conv2d layers (be careful: ResNet has many).
+    Parameters
+    ----------
+    model : torch.nn.Module
+        Model containing Conv2d layers.
+    image : torch.Tensor or PIL.Image.Image or numpy.ndarray
+        Input image; CHW tensor if `input_is_tensor=True`, otherwise raw image with `preprocess`.
+    path : pathlib.Path or str
+        Output directory for saved figures.
+    time : str
+        Timestamp used in filenames.
+    number_images : int
+        Identifier included in filenames.
+    layers_to_show : list[int], optional
+        Indices of conv layers to visualize (in discovery order).
+    layer_names : list[str], optional
+        Exact module names to visualize (overrides indices).
+    num_maps : int
+        Number of channels (feature maps) to plot per layer.
+    rows, cols : int, optional
+        Grid layout; computed dynamically if None.
+    cmap : str
+          Colormap for feature map visualization.
+    save_figures : bool
+        Save figures to disk.
+    show_plot : bool
+        Display figures interactively.
+    device : str or torch.device
+        Inference device ('cpu' or 'cuda').
+    input_is_tensor : bool
+        If False, `preprocess` must be provided to convert the image to a tensor.
+    preprocess : callable, optional
+        Preprocessing pipeline (e.g., weights.transforms()) for non-tensor inputs.
+    seed : int, optional
+        Random seed for selecting feature map channels.
 
-    Returns:
-        A dict mapping layer_name -> metadata dict (num_maps_plotted, shape, indices, filename).
+    Returns
+    -------
+    dict
+        Mapping `layer_name -> {shape, num_maps_plotted, indices, filename}`.
     """
     # Reproducibility for random map selection
     if seed is not None:
@@ -611,16 +774,13 @@ def plot_feature_maps(
                 raise IndexError(f"layers_to_show index {idx} out of range (found {len(conv_layers)} conv layers).")
             selected.append(conv_layers[idx])
     else:
-        # Default: all conv layers (can be many on ResNet)
         selected = conv_layers
 
-    # Register hooks and run forward pass
     captured: Dict[str, torch.Tensor] = {}
     hooks = []
 
     def _make_hook(name: str):
         def hook(module, input, output):
-            # Capture the feature maps: output shape [B, C, H, W]
             captured[name] = output.detach().to("cpu")
         return hook
 
@@ -632,7 +792,6 @@ def plot_feature_maps(
             _ = model(x)
 
     finally:
-        # Clean up hooks
         for h in hooks:
             h.remove()
 
@@ -640,11 +799,10 @@ def plot_feature_maps(
     results: Dict[str, Dict] = {}
     for name, _layer in selected:
         if name not in captured:
-            # Layer may be skipped due to conditional flow; warn and continue.
             print(f"[plot_feature_maps] Warning: no output captured for layer '{name}'.")
             continue
 
-        feat = captured[name]  # [B, C, H, W]
+        feat = captured[name]  
         B, C, H, W = feat.shape
         if B == 0 or C == 0:
             print(f"[plot_feature_maps] Warning: empty output at layer '{name}'.")
@@ -667,9 +825,8 @@ def plot_feature_maps(
         axes = np.array(axes).reshape(-1)
 
         for j, idx in enumerate(indices):
-            # Use the first sample in batch for visualization
             img = feat[0, idx].numpy()
-            # Optional min-max normalization for display (improves contrast)
+
             vmin, vmax = float(img.min()), float(img.max())
             if vmax > vmin:
                 img = (img - vmin) / (vmax - vmin)
@@ -678,13 +835,11 @@ def plot_feature_maps(
             axes[j].axis("off")
             axes[j].set_title(f"ch={idx}", fontsize=7)
 
-        # Hide extra axes
         for k in range(maps_to_show, len(axes)):
             axes[k].axis("off")
 
         fig.suptitle(f"Feature maps: {_sanitize(name)}", fontsize=11)
 
-        # Save
         fname = f"{time}_FeatureMaps_{_sanitize(name)}_nimgs{number_images}.png"
         if save_figures:
             out_path = path / fname
@@ -704,95 +859,3 @@ def plot_feature_maps(
         }
 
     return results
-
-
-
-
-
-
-
-"""
-def plot_feature_maps(model, model_layer_number, image, path, time, number_images, layers_to_show=None, num_maps=8, rows=None, cols=None, cmap='gray', save_figures=None, show_plot=None):
-    
-    Docstring created by Copilot:
-
-    Visualizes randomly selected feature maps from specified convolutional layers of a CNN.
-
-    This function performs a forward pass of the input image through the model and plots
-    feature maps from selected layers. It supports dynamic grid layout and minimal whitespace
-    for better visualization.
-
-    Args:
-        model (torch.nn.Module): A PyTorch CNN model with a `features` attribute.
-        model_layer_number (int): Identifier for the layer (used in the saved filename and title).
-        image (torch.Tensor): Input image tensor with shape [C, H, W].
-        path (Path or str): Directory path where the figure will be saved if `save_figures` is True.
-        time (str): A string identifier (e.g., timestamp) used in the saved filename.
-        number_images (int): Number of images used in training or context, included in filename.
-        layers_to_show (list[int], optional): List of layer indices to visualize. If None, all Conv2d layers are considered.
-        num_maps (int, optional): Number of feature maps to display per layer. Default is 8.
-        rows (int, optional): Number of rows in the plot grid. If None, computed dynamically.
-        cols (int, optional): Number of columns in the plot grid. If None, computed dynamically.
-        cmap (str, optional): Colormap for displaying feature maps. Default is 'gray'.
-        save_figures (bool, optional): Whether to save the figure to disk. Default is None (treated as False).
-        show_plot (bool, optional): Whether to display the plot interactively. Default is None (treated as False).
-
-    Behavior:
-        - Performs a forward pass through all layers in `model.features`.
-        - For each Conv2d layer in `layers_to_show` (or all if None), randomly selects `num_maps` feature maps.
-        - Dynamically computes grid layout if `rows` or `cols` are not provided.
-        - Displays feature maps using Matplotlib with minimal whitespace.
-        - Saves the figure as a PNG file if `save_figures` is True.
-        - Shows or closes the plot based on `show_plot`.
-
-    Notes:
-        - Feature maps are normalized automatically by Matplotlib's default behavior.
-        - The figure title includes the layer number for clarity.
-
-    Example:
-        plot_feature_maps(model, 3, image_tensor, Path('./plots'), '2025-11-18', 100,
-                          layers_to_show=[2, 4], num_maps=6, cmap='viridis', save_figures=True, show_plot=True)
-    
-
-    model.eval()
-    with torch.no_grad():
-        x = image.unsqueeze(0)  # Add batch dimension
-        for i, layer in enumerate(model.features):
-            x = layer(x)
-            if isinstance(layer, nn.Conv2d):
-                if layers_to_show is None or i in layers_to_show:
-                    total_maps = x.shape[1]
-                    maps_to_show = min(num_maps, total_maps)
-
-                    # Randomly select indices
-                    selected_indices = random.sample(range(total_maps), maps_to_show)
-
-                    # Use user-defined layout or compute dynamically
-                    if rows is None or cols is None:
-                        cols = min(maps_to_show, 6)
-                        rows = (maps_to_show + cols - 1) // cols
-
-                    # Dynamic figure size based on rows/cols
-                    fig_width = cols * 1.8
-                    fig_height = rows * 1.8
-
-                    fig, axes = plt.subplots(rows, cols, figsize=(fig_width, fig_height), constrained_layout=True)
-                    axes = axes.flatten()
-
-                    for j, idx in enumerate(selected_indices):
-                        axes[j].imshow(x[0, idx].cpu(), cmap=cmap)
-                        axes[j].axis('off')
-
-                    # Hide unused axes
-                    for k in range(maps_to_show, len(axes)):
-                        axes[k].axis('off')
-
-                    # Title close to top without extra padding
-                    fig.suptitle(f'Feature map after layer {model_layer_number}')
-                    #fig.suptitle(f'Random feature maps after layer {i} ({layer.__class__.__name__})')#, y=0.99)
-                    if save_figures: plt.savefig(path / f'{time}_Feature_map_model_layer{model_layer_number}_number_images{number_images}.png', dpi=300, bbox_inches='tight')
-                    if show_plot:
-                        plt.show()
-                    else:
-                        plt.close()
-"""

@@ -1,30 +1,39 @@
-# Imports
-import torch
-from torch.utils.data import Dataset
 
-from tqdm import tqdm
-
-import random
-import numpy as np
-from pathlib import Path
-import yaml
-
-
-import json
-
-import json
-import time
-from pathlib import Path
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms as T
+
+from tqdm import tqdm
 from PIL import Image
-import yaml
+
+import numpy as np
 import random
+import time
+import json
+import yaml
+
+from pathlib import Path
 from collections import defaultdict
 
+
 def set_seed(seed: int = 42, deterministic: bool = True):
-    """Set seeds for Python, NumPy, and PyTorch for reproducibility."""
+    """
+    Docstrings made with Copilot and edited
+    Set random seeds for reproducibility across Python, NumPy, and PyTorch.
+
+    Parameters
+    ----------
+    seed : int, optional
+        Seed value for random number generators. Default is 42.
+    deterministic : bool, optional
+        If True, enforce deterministic behavior in PyTorch CUDA operations
+        (may reduce performance). Default is True.
+
+    Effects
+    -------
+    - Sets seeds for `random`, `numpy`, `torch`, and all CUDA devices.
+    - Configures PyTorch backend for deterministic execution if requested.
+    """
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -37,22 +46,117 @@ def set_seed(seed: int = 42, deterministic: bool = True):
 
 
 class YOLODataset(Dataset):
+
+    """
+    Docstrings made with Copilot and edited
+    Load a YOLO-style dataset with optional class subsetting, balanced sampling,
+    resizing, and configurable normalization. Displays progress bars during
+    data collection and normalization.
+
+    Parameters
+    ----------
+    yaml_path : str or pathlib.Path
+        Path to `data.yaml` in YOLO format (must include `nc`, `names`, and split paths).
+    subset_classes : list[str] or None, optional
+        Class names to include (case-insensitive). If None, use all classes. Default is None.
+    max_images : int or None, optional
+        Per-class cap to balance the dataset. If None, include all available. Default is None.
+    split : str, optional
+        Dataset split: `'train'`, `'val'`/`'valid'`, or `'test'`. Default is `'train'`.
+    img_size : tuple[int, int], optional
+        Target image size `(H, W)` for resizing prior to `ToTensor`. Default is `(224, 224)`.
+    normalize : bool or {'auto', 'compute', 'load', 'ImageNet'}, optional
+        Normalization mode:
+        - True: same as `'ImageNet'`.
+        - False: no normalization.
+        - 'auto': compute mean/std from a sample; load from `norm_file` if it exists.
+        - 'compute': force computation of mean/std and optionally save to `norm_file`.
+        - 'load': load mean/std from `norm_file` (file must exist).
+        - 'ImageNet': use ImageNet mean/std.
+        Default is True.
+    norm_file : str or pathlib.Path or None, optional
+        JSON file to load/save normalization stats when using `'auto'`, `'compute'`, or `'load'`. Default is None.
+    debug : bool, optional
+        If True, print debug information (paths, normalization, sampling). Default is False.
+    auto_norm_sample : int, optional
+        Number of images to sample when estimating mean/std for `'auto'`/`'compute'`. Default is 500.
+    crop_strategy : {'largest', 'none'}, optional
+        Cropping strategy:
+        - 'largest': crop around the largest bounding box for the selected class.
+        - 'none': use full image.
+        Default is 'largest'.
+    seed : int, optional
+        RNG seed for reproducible shuffling/sampling. Default is 42.
+
+    Attributes
+    ----------
+    class_names : list[str]
+        Lowercased class names from `data.yaml`.
+    num_classes : int
+        Number of classes (`nc` in `data.yaml` or len(`names`)).
+    class_to_idx_full : dict[str, int]
+        Mapping from original class names to indices.
+    subset_class_names : list[str]
+        Active class names after subsetting (lowercased).
+    remap : dict[int, int]
+        Mapping from original YOLO class IDs to compact indices for the subset.
+    pairs : list[tuple[pathlib.Path, list[tuple[int, float, float, float, float]]]]
+        Collected items as `(image_path, boxes_all)` where `boxes_all` are YOLO labels:
+        `(cls, cx, cy, w, h)` in normalized coordinates.
+    transform : torchvision.transforms.Compose
+        Composed transforms applied to images (resize, tensor, optional normalize).
+    crop_strategy : str
+        Active crop strategy ('largest' or 'none').
+
+    Returns
+    -------
+    YOLODataset
+        Initialized dataset ready for use with a PyTorch `DataLoader`.
+
+    Raises
+    ------
+    KeyError
+        If the requested `split` is not present in `data.yaml`.
+    ValueError
+        If `subset_classes` contains unknown class names or `crop_strategy` is invalid.
+    FileNotFoundError
+        If `'load'` normalization is requested and `norm_file` does not exist.
+    RuntimeError
+        If no items are found after filtering and balancing.
+
+    Prints
+    ------
+    - Debug messages (paths, normalization mode/stats, sampling details) when `debug=True`.
+    - Per-class counts after balanced sampling.
+
+    Progress
+    --------
+    Displays `tqdm` progress bars:
+    - "Loading dataset" for uncapped collection (`max_images is None`).
+    - "Balanced sampling" for per-class capped collection.
+    - "Computing mean/std" when estimating normalization statistics.
+
+    __getitem__ Output
+    ------------------
+    dict with keys:
+    - 'image' : torch.Tensor
+        Transformed image tensor.
+    - 'label' : int
+        Remapped class index for the selected box.
+    - 'class_name' : str
+        Class name corresponding to 'label'.
+    - 'path' : str
+        Image file path.
+    - 'crop_size' : tuple[int, int]
+        (width, height) of the cropped region (or original image if no crop).
+    - 'orig_size' : tuple[int, int]
+        (width, height) of the original image.
+    """
+
     def __init__(self, yaml_path, subset_classes=None, max_images=None, split='train',
                  img_size=(224, 224), normalize=True, norm_file=None, debug=False, auto_norm_sample=500,
                  crop_strategy="largest", seed=42):
-        """
-        Args:
-            yaml_path (str|Path): Path to data.yaml (YOLO-style)
-            subset_classes (list[str]|None): Class names to include (case-insensitive). None = all classes.
-            max_images (int|None): Balanced limit PER CLASS. If None, load all available.
-            split (str): 'train' | 'val'/'valid' | 'test'
-            img_size (tuple[int, int]): (H, W) to resize before ToTensor
-            normalize (True|False|'auto'): True=ImageNet stats, False=none, 'auto'=compute from dataset sample
-            debug (bool): Print debug info
-            auto_norm_sample (int): number of images to sample when normalize='auto'
-            crop_strategy ('largest'|'none'): crop around largest bbox of selected class or keep full image
-            seed (int): RNG seed for reproducible sampling
-        """
+
         yaml_path = Path(yaml_path)
         with open(yaml_path, "r") as f:
             data_cfg = yaml.safe_load(f)
@@ -314,6 +418,35 @@ class YOLODataset(Dataset):
 
 
 def classification_collate_fn(batch):
+    """
+    Docstrings made with Copilot and edited
+    Collate a batch of classification samples into tensors and lists for DataLoader.
+
+    Parameters
+    ----------
+    batch : list of dict
+        Each element is a dictionary with keys:
+        - 'image' : torch.Tensor
+            Transformed image tensor.
+        - 'label' : int
+            Class index.
+        - 'path' : str
+            Image file path.
+        - 'class_name' : str
+            Class name.
+
+    Returns
+    -------
+    dict
+        - 'images' : torch.Tensor
+            Stacked image tensors of shape (batch_size, C, H, W).
+        - 'labels' : torch.Tensor
+            Tensor of class indices (dtype=torch.long).
+        - 'paths' : list of str
+            Original image file paths.
+        - 'class_names' : list of str
+            Class names for each sample.
+    """
     images = torch.stack([b["image"] for b in batch], dim=0)
     labels = torch.tensor([b["label"] for b in batch], dtype=torch.long)
     paths = [b["path"] for b in batch]

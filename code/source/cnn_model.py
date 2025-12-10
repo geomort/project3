@@ -7,16 +7,56 @@ from tqdm import tqdm
 
 
 class FlexibleCNN(nn.Module):
+
+    """
+    Docstrings made with Copilot and edited
+    A configurable Convolutional Neural Network for image classification.
+
+    Parameters
+    ----------
+    input_size : tuple
+        Input image size as (channels, height, width).
+    num_classes : int
+        Number of output classes.
+    conv_layers : list of tuple, optional
+        Convolutional layers defined as [(out_channels, kernel_size), ...].
+    fc_layers : list of int, optional
+        Fully connected layers defined as [units per layer].
+    activation : callable, optional
+        Activation function class (e.g., nn.ReLU).
+    dropout_fc : float, optional
+        Dropout probability for fully connected layers.
+    dropout_conv : float, optional
+        Dropout probability for convolutional layers.
+    use_batchnorm : bool, optional
+        Whether to include BatchNorm after each convolution.
+    pool_type : str, optional
+        Pooling type: "max" or "avg".
+    global_pool : str, optional
+        Global pooling type: "avg" or "max".
+
+    Methods
+    -------
+    forward(x):
+        Forward pass through the network.
+
+    Notes
+    -----
+    - Convolutional layers are followed by activation, optional BatchNorm, optional dropout, and pooling.
+    - Global pooling reduces spatial dimensions before fully connected layers.
+    """
+
     def __init__(self, input_size, num_classes,
-                 conv_layers=[(32, 3), (64, 3), (128, 3)],  # [(out_channels, kernel_size), ...]
-                 fc_layers=[256, 128],                     # [units for each FC layer]
-                 activation=nn.ReLU,                       # Activation class
-                 dropout_fc=0.5,                           # Dropout for FC layers
-                 dropout_conv=0.0,                         #  Optional dropout for conv layers
+                 conv_layers=[(32, 3), (64, 3), (128, 3)],  
+                 fc_layers=[256, 128],                     
+                 activation=nn.ReLU,                       
+                 dropout_fc=0.5,                           
+                 dropout_conv=0.0,                         
                  use_batchnorm=True,
-                 pool_type="max",                          # "max" or "avg"
+                 pool_type="max",                          
                  global_pool="avg"):
         super().__init__()
+
 
         # Choose pooling layers
         pool_layer = nn.MaxPool2d(2) if pool_type == "max" else nn.AvgPool2d(2)
@@ -31,11 +71,11 @@ class FlexibleCNN(nn.Module):
                 layers.append(nn.BatchNorm2d(out_channels))
             layers.append(activation())
             if dropout_conv > 0:
-                layers.append(nn.Dropout2d(dropout_conv))  # ✅ Dropout for conv layers
+                layers.append(nn.Dropout2d(dropout_conv)) 
             layers.append(pool_layer)
             in_channels = out_channels
 
-        layers.append(global_pool_layer)  # ✅ Global pooling
+        layers.append(global_pool_layer) 
         self.features = nn.Sequential(*layers)
 
         # Classifier
@@ -61,6 +101,47 @@ class FlexibleCNN(nn.Module):
 
 def train_model(model, num_epochs, train_dl, valid_dl, loss_fn, optimizer, device="cpu",
                 verbose=False, patience_val=10, trial=None):
+    """
+    Docstrings made with Copilot and edited
+    Train a classification model with validation, LR scheduling, early stopping, and optional Optuna pruning.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The model to train.
+    num_epochs : int
+        Maximum number of training epochs.
+    train_dl : torch.utils.data.DataLoader
+        Dataloader for training data.
+    valid_dl : torch.utils.data.DataLoader
+        Dataloader for validation data.
+    loss_fn : callable
+        Loss function (e.g., nn.CrossEntropyLoss).
+    optimizer : torch.optim.Optimizer
+        Optimizer instance.
+    device : str, optional
+        Device for training ('cpu' or 'cuda').
+    verbose : bool, optional
+        Unused here; progress is shown via tqdm bars.
+    patience_val : int, optional
+        Patience for ReduceLROnPlateau and early stopping (based on validation accuracy).
+    trial : optuna.trial.Trial, optional
+        Optuna trial for reporting and pruning.
+
+    Returns
+    -------
+    dict
+        Training history with keys: 'train_loss', 'train_acc', 'valid_loss', 'valid_acc'.
+
+    Notes
+    -----
+    - Supports batches as dicts with keys ('image'/'images', 'label'/'labels') or tuples (x, y).
+    - Uses ReduceLROnPlateau on validation loss.
+    - Early stops when validation accuracy does not improve for `patience_val` epochs.
+    - Restores the best model weights (by validation accuracy) before returning.
+    - Displays per-epoch progress with tqdm and prints final metrics per epoch
+    """
+
     model.to(device)
     history = {"train_loss": [], "train_acc": [], "valid_loss": [], "valid_acc": []}
 
@@ -177,3 +258,41 @@ def train_model(model, num_epochs, train_dl, valid_dl, loss_fn, optimizer, devic
     return history
 
 
+
+def get_batch_size(n_images_train=None):
+    """
+    Docstrings made with Copilot and edited
+    Determine an appropriate batch size based on GPU memory and dataset size.
+
+    Parameters
+    ----------
+    n_images_train : int or None
+        Number of training images. If None, only hardware-based defaults are used.
+
+    Returns
+    -------
+    int
+        Recommended batch size:
+        - GPU > 12 GB → 128
+        - GPU ≤ 12 GB → 64
+        - No GPU → 32
+        - Adjusted for small datasets (<20 → 16, <100 → 32).
+    """
+
+    if torch.cuda.is_available():
+        gpu_mem = torch.cuda.get_device_properties(0).total_memory / 1024**3  # in GB
+        if gpu_mem > 12:
+            default_large = 128
+        else:
+            default_large = 64
+    else:
+        default_large = 32
+
+    if n_images_train is None:
+        return default_large
+    elif n_images_train < 20:
+        return 16
+    elif n_images_train < 100:
+        return 32
+    else:
+        return default_large
