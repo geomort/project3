@@ -3,9 +3,9 @@ import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 
 try:
-    from .well_data_preprocessing import load_log_data
+    from .ffnn_well_data_preprocessing import load_log_data
 except ImportError:
-    from well_data_preprocessing import load_log_data
+    from ffnn_well_data_preprocessing import load_log_data
 
 
 class WellLogFFNN(nn.Module):
