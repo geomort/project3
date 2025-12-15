@@ -661,6 +661,8 @@ def _sanitize(name: str) -> str:
 
 
 
+
+
 def plot_feature_maps(
     model: nn.Module,
     image: Union[torch.Tensor, "PIL.Image.Image", np.ndarray],
@@ -682,48 +684,7 @@ def plot_feature_maps(
 ) -> Dict[str, Dict]:
 
     """
-    Docstrings made with Copilot and edited
     Visualize feature maps from selected Conv2d layers using forward hooks.
-
-    Parameters
-    ----------
-    model : torch.nn.Module
-        Model containing Conv2d layers.
-    image : torch.Tensor or PIL.Image.Image or numpy.ndarray
-        Input image; CHW tensor if `input_is_tensor=True`, otherwise raw image with `preprocess`.
-    path : pathlib.Path or str
-        Output directory for saved figures.
-    time : str
-        Timestamp used in filenames.
-    number_images : int
-        Identifier included in filenames.
-    layers_to_show : list[int], optional
-        Indices of conv layers to visualize (in discovery order).
-    layer_names : list[str], optional
-        Exact module names to visualize (overrides indices).
-    num_maps : int
-        Number of channels (feature maps) to plot per layer.
-    rows, cols : int, optional
-        Grid layout; computed dynamically if None.
-    cmap : str
-          Colormap for feature map visualization.
-    save_figures : bool
-        Save figures to disk.
-    show_plot : bool
-        Display figures interactively.
-    device : str or torch.device
-        Inference device ('cpu' or 'cuda').
-    input_is_tensor : bool
-        If False, `preprocess` must be provided to convert the image to a tensor.
-    preprocess : callable, optional
-        Preprocessing pipeline (e.g., weights.transforms()) for non-tensor inputs.
-    seed : int, optional
-        Random seed for selecting feature map channels.
-
-    Returns
-    -------
-    dict
-        Mapping `layer_name -> {shape, num_maps_plotted, indices, filename}`.
     """
     # Reproducibility for random map selection
     if seed is not None:
@@ -787,13 +748,16 @@ def plot_feature_maps(
     try:
         for name, layer in selected:
             hooks.append(layer.register_forward_hook(_make_hook(name)))
-
         with torch.no_grad():
             _ = model(x)
-
     finally:
         for h in hooks:
             h.remove()
+
+    # Global conv-layer position map (for robust first/last titling)
+    global_pos = {n: i for i, (n, _l) in enumerate(conv_layers)}
+    first_global = min(global_pos.values()) if global_pos else None
+    last_global  = max(global_pos.values()) if global_pos else None
 
     # Plot
     results: Dict[str, Dict] = {}
@@ -826,11 +790,9 @@ def plot_feature_maps(
 
         for j, idx in enumerate(indices):
             img = feat[0, idx].numpy()
-
             vmin, vmax = float(img.min()), float(img.max())
             if vmax > vmin:
                 img = (img - vmin) / (vmax - vmin)
-
             axes[j].imshow(img, cmap=cmap)
             axes[j].axis("off")
             axes[j].set_title(f"ch={idx}", fontsize=7)
@@ -838,7 +800,16 @@ def plot_feature_maps(
         for k in range(maps_to_show, len(axes)):
             axes[k].axis("off")
 
-        fig.suptitle(f"Feature maps: {_sanitize(name)}", fontsize=11)
+        # Title: first/last with respect to the full conv_layers order
+        pos = global_pos.get(name, None)
+        if pos is not None and pos == first_global and pos == last_global:
+            fig.suptitle("Feature map (only conv layer)", fontsize=11)
+        elif pos is not None and pos == first_global:
+            fig.suptitle("Feature map first layer", fontsize=11)
+        elif pos is not None and pos == last_global:
+            fig.suptitle("Feature map last layer", fontsize=11)
+        else:
+            fig.suptitle(f"Feature maps: {_sanitize(name)}", fontsize=11)
 
         fname = f"{time}_FeatureMaps_{_sanitize(name)}_nimgs{number_images}.png"
         if save_figures:
@@ -859,3 +830,4 @@ def plot_feature_maps(
         }
 
     return results
+
