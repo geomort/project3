@@ -7,7 +7,12 @@ import torch
 from sklearn.preprocessing import StandardScaler
 
 
-def load_log_data(path: str | None = None, random_state: int | None = None):
+def load_log_data(
+    path: str | None = None,
+    random_state: int | None = None,
+    split_method: str = "random",   # "random" or "depth"
+    gap: int = 0                    # number of samples as a buffer between splits
+):
     """
     Load well-log data from a LAS file and return train/val/test tensors.
 
@@ -18,6 +23,13 @@ def load_log_data(path: str | None = None, random_state: int | None = None):
         If None, a default file path inside the project structure is used.
     random_state : int, optional
         Seed for the random train/val/test split. If None, a fresh RNG is used.
+    split_method : str
+        Split strategy: "random" or "depth".
+        - "random": random permutation split
+        - "depth": contiguous intervals after sorting by depth
+    gap : int
+        Buffer (in number of samples) inserted between train/val and val/test
+        for the "depth" split to reduce neighbor leakage.
 
     Returns
     -------
@@ -29,18 +41,11 @@ def load_log_data(path: str | None = None, random_state: int | None = None):
     # Resolve LAS file path
     # ----------------------------------------------------------------------
     if path is None:
-        # Get directory of this script: e.g. /workspaces/project3/code/source
         current_dir = os.path.dirname(os.path.abspath(__file__))
-
-        # Move two levels up to project root: /workspaces/project3
         project_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
-
         repo_root = Path(project_root)
 
-        # First try to find something like '1_9-7*LOGS*.LAS' anywhere in repo
         candidates = list(repo_root.glob("**/1_9-7*LOGS*.LAS"))
-
-        # Fallback: any LAS file under datasets/well_data
         if not candidates:
             candidates = list(repo_root.glob("datasets/well_data/**/*.LAS")) + \
                          list(repo_root.glob("datasets/well_data/*.LAS"))
@@ -55,7 +60,6 @@ def load_log_data(path: str | None = None, random_state: int | None = None):
         print(f"[load_log_data] Using LAS file: {las_path}")
 
     else:
-        # If path is not absolute, treat it as relative to this file
         if not os.path.isabs(path):
             current_dir = os.path.dirname(os.path.abspath(__file__))
             las_path = os.path.join(current_dir, path)
@@ -71,7 +75,6 @@ def load_log_data(path: str | None = None, random_state: int | None = None):
     except Exception as e:
         raise RuntimeError(f"Failed to read LAS file at {las_path}: {e}")
 
-    # las.df() returns a DataFrame indexed by depth; reset_index makes depth a column
     df = las.df().reset_index()
 
     # ----------------------------------------------------------------------
@@ -118,17 +121,17 @@ def load_log_data(path: str | None = None, random_state: int | None = None):
     df_model = df_model.replace([np.inf, -np.inf], np.nan)
     df_model = df_model.dropna()
 
-    # Sort by depth (good practice, even if we randomize later)
+    # Sort by depth (required for depth-based split; harmless for random split)
     df_model = df_model.sort_values(depth_col).reset_index(drop=True)
 
     # ----------------------------------------------------------------------
     # Convert to numpy arrays
     # ----------------------------------------------------------------------
-    depth = df_model[depth_col].values  # (N,)
-    y = df_model[target_col].values     # (N,)
-    X = df_model[feature_cols].values   # (N, n_features)
+    depth = df_model[depth_col].values
+    y = df_model[target_col].values
+    X = df_model[feature_cols].values
 
-    # Mask invalid rows (NaN or infinite) – extra safety
+    # Extra safety: remove any remaining invalid rows
     valid_indices = ~(
         np.isnan(X).any(axis=1)
         | np.isinf(X).any(axis=1)
@@ -144,27 +147,49 @@ def load_log_data(path: str | None = None, random_state: int | None = None):
     print(f"Data shape after NaN removal: X={X.shape}, y={y.shape}")
 
     # ----------------------------------------------------------------------
-    # Random split: 70% train, 15% val, 15% test
+    # Split indices: 70% train, 15% val, 15% test
     # ----------------------------------------------------------------------
-    # Use a local RNG so each call can have its own seed (e.g. per Optuna trial)
-    rng = np.random.default_rng(random_state)
-
     N = X.shape[0]
-    indices = rng.permutation(N)
-
     train_end = int(0.7 * N)
     val_end = int(0.85 * N)
 
-    train_idx = indices[:train_end]
-    val_idx = indices[train_end:val_end]
-    test_idx = indices[val_end:]
+    if split_method == "random":
+        # Random permutation split (seeded if random_state is provided)
+        rng = np.random.default_rng(random_state)
+        indices = rng.permutation(N)
 
+        train_idx = indices[:train_end]
+        val_idx   = indices[train_end:val_end]
+        test_idx  = indices[val_end:]
+
+    elif split_method == "depth":
+        # Depth-based split: contiguous intervals (data already sorted by depth)
+        # gap is a buffer (in samples) to reduce neighbor leakage between sets
+        train_idx = np.arange(0, train_end)
+
+        val_start = min(train_end + gap, N)
+        val_len = val_end - train_end
+        val_idx = np.arange(val_start, min(val_start + val_len, N))
+
+        # Start test after validation, with another gap if possible
+        test_start = (val_idx[-1] + 1 + gap) if len(val_idx) > 0 else val_start
+        test_start = min(test_start, N)
+        test_idx = np.arange(test_start, N)
+
+    else:
+        raise ValueError("split_method must be 'random' or 'depth'")
+
+    # Create split datasets (shared for both split methods)
     X_train, y_train = X[train_idx], y[train_idx]
     X_val,   y_val   = X[val_idx],   y[val_idx]
     X_test,  y_test  = X[test_idx],  y[test_idx]
 
+    # Optional safety check: ensure val/test are non-empty (especially with large gap)
+    if X_val.shape[0] == 0 or X_test.shape[0] == 0:
+        raise ValueError("Validation or test set became empty. Reduce 'gap' or adjust split fractions.")
+
     # ----------------------------------------------------------------------
-    # Standardize feature matrix X
+    # Standardize feature matrix X (fit on train only)
     # ----------------------------------------------------------------------
     x_scaler = StandardScaler()
     X_train = x_scaler.fit_transform(X_train)
@@ -172,7 +197,7 @@ def load_log_data(path: str | None = None, random_state: int | None = None):
     X_test  = x_scaler.transform(X_test)
 
     # ----------------------------------------------------------------------
-    # Standardize target y
+    # Standardize target y (fit on train only)
     # ----------------------------------------------------------------------
     y_scaler = StandardScaler()
     y_train_scaled = y_scaler.fit_transform(y_train.reshape(-1, 1))
@@ -199,5 +224,4 @@ def load_log_data(path: str | None = None, random_state: int | None = None):
     y_val   = torch.tensor(y_val,   dtype=torch.float32)
     y_test  = torch.tensor(y_test,  dtype=torch.float32)
 
-    # Final output
     return (X_train, y_train), (X_val, y_val), (X_test, y_test), x_scaler, y_scaler
