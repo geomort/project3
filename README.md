@@ -56,6 +56,22 @@ Link provided in report are to project3 folder.
 
 │   │   ├── source
 
+│   │   │   ├── __pyache__
+
+│   │   │   │   ├── __init__.cpython-313.pyc
+
+│   │   │   │   ├── cnn_model.cpython-313.pyc
+
+│   │   │   │   ├── dataset_reduction.cpython-313.pyc
+
+│   │   │   │   ├── plotting.cpython-313.pyc
+
+│   │   │   ├── depth_split
+
+│   │   │   │   ├── ffnn_well_data_preprocessing_depth_split.py
+
+│   │   │   │   ├── ffnn_well_log_depth_split.ipynb
+
 │   │   │   ├── cnn_model.py
 
 │   │   │   ├── cnn_plotting.py
