@@ -25,9 +25,8 @@ def load_log_data(path: str | None = None, random_state: int | None = None):
         Torch tensors and scalers for training, validation, and testing.
     """
 
-    # ----------------------------------------------------------------------
+
     # Resolve LAS file path
-    # ----------------------------------------------------------------------
     if path is None:
         # Get directory of this script: e.g. /workspaces/project3/code/source
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -63,9 +62,7 @@ def load_log_data(path: str | None = None, random_state: int | None = None):
             las_path = path
         print(f"[load_log_data] Using LAS file from argument: {las_path}")
 
-    # ----------------------------------------------------------------------
     # Read LAS file into a DataFrame
-    # ----------------------------------------------------------------------
     try:
         las = lasio.read(las_path)
     except Exception as e:
@@ -74,9 +71,7 @@ def load_log_data(path: str | None = None, random_state: int | None = None):
     # las.df() returns a DataFrame indexed by depth; reset_index makes depth a column
     df = las.df().reset_index()
 
-    # ----------------------------------------------------------------------
     # Automatically detect depth column (common names: DEPT, DEPTH)
-    # ----------------------------------------------------------------------
     depth_col = None
     for c in df.columns:
         cl = c.lower()
@@ -89,9 +84,7 @@ def load_log_data(path: str | None = None, random_state: int | None = None):
             f"No depth column found in LAS. Available columns: {list(df.columns)}"
         )
 
-    # ----------------------------------------------------------------------
     # Select target log curve (AC). Raise error if not found.
-    # ----------------------------------------------------------------------
     target_col = "AC"
     if target_col not in df.columns:
         raise KeyError(
@@ -106,9 +99,7 @@ def load_log_data(path: str | None = None, random_state: int | None = None):
     if depth_col in feature_cols:
         feature_cols.remove(depth_col)
 
-    # ----------------------------------------------------------------------
     # Replace typical null values in LAS files with NaN
-    # ----------------------------------------------------------------------
     df = df.replace([-999.25, -999.0, -9999.25], np.nan)
 
     # Keep only relevant columns: depth, target, and features
@@ -121,9 +112,7 @@ def load_log_data(path: str | None = None, random_state: int | None = None):
     # Sort by depth (good practice, even if we randomize later)
     df_model = df_model.sort_values(depth_col).reset_index(drop=True)
 
-    # ----------------------------------------------------------------------
     # Convert to numpy arrays
-    # ----------------------------------------------------------------------
     depth = df_model[depth_col].values  # (N,)
     y = df_model[target_col].values     # (N,)
     X = df_model[feature_cols].values   # (N, n_features)
@@ -143,9 +132,7 @@ def load_log_data(path: str | None = None, random_state: int | None = None):
 
     print(f"Data shape after NaN removal: X={X.shape}, y={y.shape}")
 
-    # ----------------------------------------------------------------------
     # Random split: 70% train, 15% val, 15% test
-    # ----------------------------------------------------------------------
     # Use a local RNG so each call can have its own seed (e.g. per Optuna trial)
     rng = np.random.default_rng(random_state)
 
@@ -163,21 +150,17 @@ def load_log_data(path: str | None = None, random_state: int | None = None):
     X_val,   y_val   = X[val_idx],   y[val_idx]
     X_test,  y_test  = X[test_idx],  y[test_idx]
 
-    # ----------------------------------------------------------------------
     # Standardize feature matrix X
-    # ----------------------------------------------------------------------
     x_scaler = StandardScaler()
     X_train = x_scaler.fit_transform(X_train)
     X_val   = x_scaler.transform(X_val)
     X_test  = x_scaler.transform(X_test)
 
-    # ----------------------------------------------------------------------
     # Standardize target y
-    # ----------------------------------------------------------------------
     y_scaler = StandardScaler()
     y_train_scaled = y_scaler.fit_transform(y_train.reshape(-1, 1))
 
-    # Handle potential NaNs after scaling (should be rare)
+    # Handle potential NaNs after scaling 
     if np.isnan(y_train_scaled).any():
         print("Warning: NaN values detected after scaling y_train")
         valid_mask = ~np.isnan(y_train_scaled.flatten())
@@ -188,9 +171,7 @@ def load_log_data(path: str | None = None, random_state: int | None = None):
     y_val   = y_scaler.transform(y_val.reshape(-1, 1))
     y_test  = y_scaler.transform(y_test.reshape(-1, 1))
 
-    # ----------------------------------------------------------------------
     # Convert arrays to torch tensors
-    # ----------------------------------------------------------------------
     X_train = torch.tensor(X_train, dtype=torch.float32)
     X_val   = torch.tensor(X_val,   dtype=torch.float32)
     X_test  = torch.tensor(X_test,  dtype=torch.float32)
