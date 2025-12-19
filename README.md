@@ -1,5 +1,5 @@
 # GitHub repository for project 3 in FYS-STK4155: Applied Data Analysis and Machine Learning
-Group consisting of: 
+Group members: 
   * Erik Berthelsen
   * Morten Taraldsten Brunes
 
