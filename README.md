@@ -96,10 +96,14 @@ Link provided in report are to project3 folder.
 
 │   │   ├── well_data
 
+│   ├── ffnn_results
+
+│   │   │   ├── optuna_study.db
+
 │   ├── llm_documentation
 
 │   ├── report
 
 
 
-Code for processing well-log and AgroPest-12 are within source folder, where prefix ffnn* or cnn* determines which jupyter notebook the file is used in. Results and figures from different approaches in convolutional neural network (CNN) processing are in folder cnn_results. There are three different approaches: Custom architecture for CNN model, model based on Optuna hyperparameter search and using a pretrained model. Model folder for Optuna processing also contains a Optuna database which can be used to see model parameters and results for all trails, in VS Code use extension Optuna Dashboard. Both datasets are available in folder datasets. Questions to large language model are in ll_documentation, while the report is available in report.
+Code for processing well-log and AgroPest-12 are within source folder, where prefix ffnn* or cnn* determines which jupyter notebook the file is used in. Results and figures from different approaches in convolutional neural network (CNN) processing are in folder cnn_results. There are three different approaches: Custom architecture for CNN model, model based on Optuna hyperparameter search and using a pretrained model. Model folder for Optuna processing also contains a Optuna database which can be used to see model parameters and results for all trails, in VS Code use extension Optuna Dashboard. Both datasets are available in folder datasets. Folder ffnn_results contain the Optuna database for well-log analysis. Questions to large language model are in ll_documentation, while the report is available in report.
